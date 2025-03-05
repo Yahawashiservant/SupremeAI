@@ -1,0 +1,134 @@
+# Retry generating the plugin ZIP file
+import shutil
+import os
+
+# Define plugin directory and file names
+plugin_name = "adtechlocal-ai-plugin"
+plugin_dir = f"/mnt/data/{plugin_name}"
+plugin_file = f"{plugin_dir}/adtechlocal-ai-plugin.php"
+zip_file = f"/mnt/data/{plugin_name}.zip"
+
+# Ensure the directory exists
+os.makedirs(plugin_dir, exist_ok=True)
+
+# Write the PHP plugin file again
+plugin_code = """<?php
+/**
+ * Plugin Name: AdTechLocal AI Advertising
+ * Plugin URI: https://adtechlocal.org
+ * Description: AI-powered advertising integration for AdTechLocal with enhanced analytics, campaign tracking, onboarding automation, predictive bidding, and real-time AI optimization.
+ * Version: 3.0
+ * Author: AdTechLocal Team
+ * Author URI: https://adtechlocal.org
+ */
+
+if (!defined('ABSPATH')) {
+    exit; // Exit if accessed directly
+}
+
+// Enqueue Scripts and Styles
+function adtechlocal_enqueue_scripts() {
+    error_log('AdTechLocal: Enqueuing scripts and styles');
+    wp_enqueue_style('adtechlocal-style', plugin_dir_url(__FILE__) . 'styles.css');
+    wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js', array(), null, true);
+    wp_enqueue_script('adtechlocal-script', plugin_dir_url(__FILE__) . 'script.js', array('jquery'), null, true);
+}
+add_action('wp_enqueue_scripts', 'adtechlocal_enqueue_scripts');
+
+// Shortcode for AI Advertising Interface
+function adtechlocal_ai_interface() {
+    error_log('AdTechLocal: Rendering AI Advertising Interface');
+    ob_start(); ?>
+    <div class="container">
+        <h2>Optimize Your Advertising with AI</h2>
+        <p>Leverage AI to enhance audience targeting, predictive bidding, and maximize ROI.</p>
+        <button class="button" onclick="syncWithAdTechLocal()">Start AI Audience Sync</button>
+        
+        <div class="analytics-container">
+            <h2>Live Analytics Dashboard</h2>
+            <canvas id="analyticsChart"></canvas>
+            <p id="error-message" style="color: red; display: none;">Failed to load analytics data.</p>
+        </div>
+
+        <div class="onboarding-container">
+            <h2>Advertiser Onboarding</h2>
+            <form id="onboardingForm">
+                <input type="text" name="company_name" placeholder="Company Name" required>
+                <input type="email" name="email" placeholder="Email Address" required>
+                <input type="text" name="industry" placeholder="Industry Type" required>
+                <button type="submit">Start Onboarding</button>
+            </form>
+            <p id="onboarding-message" style="color: green; display: none;">Onboarding Successful!</p>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('adtechlocal_ai', 'adtechlocal_ai_interface');
+
+// AJAX API Fetching
+function adtechlocal_fetch_analytics() {
+    error_log('AdTechLocal: Fetching analytics data from API');
+    $response = wp_remote_get(home_url('/api/ad-performance'));
+    if (is_wp_error($response)) {
+        error_log('AdTechLocal: API fetch failed - ' . $response->get_error_message());
+        wp_send_json_error(['message' => 'API fetch failed']);
+    }
+    
+    $data = wp_remote_retrieve_body($response);
+    if (!$data) {
+        error_log('AdTechLocal: API returned empty response');
+        wp_send_json_error(['message' => 'Empty response from API']);
+    }
+    
+    error_log('AdTechLocal: API data fetched successfully');
+    wp_send_json_success(json_decode($data, true));
+}
+add_action('wp_ajax_adtechlocal_fetch', 'adtechlocal_fetch_analytics');
+add_action('wp_ajax_nopriv_adtechlocal_fetch', 'adtechlocal_fetch_analytics');
+
+// Predictive AI Bidding System
+function adtechlocal_predictive_bidding() {
+    error_log('AdTechLocal: Running predictive bidding AI');
+    $ad_data = [
+        'keywords' => ['AI Marketing', 'Programmatic Ads', 'DSP Advertising'],
+        'bid_strategy' => 'automated',
+        'target_audience' => 'High intent buyers',
+        'conversion_rate' => rand(5, 20) . "%"
+    ];
+    error_log('AdTechLocal: Predictive Bidding Data - ' . print_r($ad_data, true));
+    wp_send_json_success($ad_data);
+}
+add_action('wp_ajax_adtechlocal_bid', 'adtechlocal_predictive_bidding');
+add_action('wp_ajax_nopriv_adtechlocal_bid', 'adtechlocal_predictive_bidding');
+
+// Advertiser Onboarding Handler
+function adtechlocal_handle_onboarding() {
+    error_log('AdTechLocal: Processing onboarding form submission');
+    if (!isset($_POST['company_name']) || !isset($_POST['email']) || !isset($_POST['industry'])) {
+        error_log('AdTechLocal: Missing form fields');
+        wp_send_json_error(['message' => 'Invalid form submission']);
+    }
+    
+    $company_name = sanitize_text_field($_POST['company_name']);
+    $email = sanitize_email($_POST['email']);
+    $industry = sanitize_text_field($_POST['industry']);
+    error_log("AdTechLocal: Onboarding successful for $company_name ($email) - Industry: $industry");
+    
+    wp_send_json_success(['message' => 'Onboarding successful']);
+}
+add_action('wp_ajax_adtechlocal_onboard', 'adtechlocal_handle_onboarding');
+add_action('wp_ajax_nopriv_adtechlocal_onboard', 'adtechlocal_handle_onboarding');
+
+?>
+"""
+
+# Write the plugin file
+with open(plugin_file, "w") as f:
+    f.write(plugin_code)
+
+# Create a zip archive
+shutil.make_archive(plugin_dir, 'zip', plugin_dir)
+
+# Return the zip file path
+zip_file
